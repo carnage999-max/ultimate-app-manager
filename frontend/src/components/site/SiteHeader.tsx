@@ -1,12 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+
+  // Prevent background scroll when sidebar is open
+  useEffect(() => {
+    if (open) {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [open]);
   return (
     <header className="px-4 md:px-6 h-16 flex items-center justify-between border-b bg-background/80 backdrop-blur sticky top-0 z-50">
       <Link href="/" className="flex items-center gap-2 min-w-0">
@@ -34,10 +46,14 @@ export function SiteHeader() {
       {open ? (
         <div className="md:hidden">
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+            className="fixed inset-0 bg-background animate-in fade-in duration-200 z-40"
             onClick={() => setOpen(false)}
           />
-          <aside className="fixed right-0 top-0 h-full w-72 max-w-[85vw] bg-background border-l shadow-xl p-6 animate-in slide-in-from-right duration-200">
+          <aside
+            role="dialog"
+            aria-modal="true"
+            className="fixed right-0 top-0 h-full w-72 max-w-[85vw] bg-background border-l shadow-xl p-6 animate-in slide-in-from-right duration-200 z-50"
+          >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <Image src="/logo.png" alt="Logo" width={24} height={24} className="rounded" />
