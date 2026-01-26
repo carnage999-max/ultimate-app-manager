@@ -1,14 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { resend } from '@/lib/email';
 
-export async function POST(request: Request) {
+// Public endpoint: allows any user to submit an account deletion request
+// Emails support so an admin can manually process the deletion.
+export async function POST(request: NextRequest) {
   try {
     const { name, email, reason } = await request.json();
     if (!email || !name) {
       return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
     }
 
-    const subject = `Account Deletion Request — ${email}`;
+    const subject = `Account Deletion Request - ${email}`;
     const html = `
       <h2>Account Deletion Request</h2>
       <p><strong>Name:</strong> ${name}</p>

@@ -1,3 +1,4 @@
 projectspec.txt
 *_*.md
 .vscode/
+.env

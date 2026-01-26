@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { resend } from '@/lib/email';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { to, subject, html } = await request.json();
 

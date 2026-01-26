@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-export async function POST() {
+export async function POST(_request: NextRequest) {
   try {
     const jar = await cookies();
     // Clear auth cookie
@@ -17,4 +17,3 @@ export async function POST() {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-

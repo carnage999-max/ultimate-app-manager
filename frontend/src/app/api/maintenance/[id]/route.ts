@@ -1,12 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyToken, getAuthToken } from '@/lib/auth';
 
-type Params = { params: { id: string } };
+type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: NextRequest, ctx: Ctx) {
   try {
-    const ticket = await prisma.maintenanceTicket.findUnique({ where: { id: params.id } });
+    const { id } = await ctx.params;
+    const ticket = await prisma.maintenanceTicket.findUnique({ where: { id } });
     if (!ticket) return NextResponse.json({ error: 'Not Found' }, { status: 404 });
     return NextResponse.json(ticket);
   } catch (error) {
@@ -15,14 +16,15 @@ export async function GET(_req: Request, { params }: Params) {
   }
 }
 
-export async function PATCH(request: Request, { params }: Params) {
+export async function PATCH(request: NextRequest, ctx: Ctx) {
   try {
     const token = await getAuthToken(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const payload = verifyToken(token) as { userId: string; role: string } | null;
     if (!payload) return NextResponse.json({ error: 'Invalid Token' }, { status: 401 });
 
-    const existing = await prisma.maintenanceTicket.findUnique({ where: { id: params.id } });
+    const { id } = await ctx.params;
+    const existing = await prisma.maintenanceTicket.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: 'Not Found' }, { status: 404 });
 
     const isOwner = existing.tenantId === payload.userId;
@@ -38,7 +40,7 @@ export async function PATCH(request: Request, { params }: Params) {
     if (typeof body.priority === 'string') data.priority = body.priority;
     if (isAdmin && typeof body.status === 'string') data.status = body.status;
 
-    const updated = await prisma.maintenanceTicket.update({ where: { id: params.id }, data });
+    const updated = await prisma.maintenanceTicket.update({ where: { id }, data });
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Ticket PATCH Error:', error);
@@ -46,25 +48,25 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(request: Request, { params }: Params) {
+export async function DELETE(request: NextRequest, ctx: Ctx) {
   try {
     const token = await getAuthToken(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const payload = verifyToken(token) as { userId: string; role: string } | null;
     if (!payload) return NextResponse.json({ error: 'Invalid Token' }, { status: 401 });
 
-    const existing = await prisma.maintenanceTicket.findUnique({ where: { id: params.id } });
+    const { id } = await ctx.params;
+    const existing = await prisma.maintenanceTicket.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: 'Not Found' }, { status: 404 });
 
     const isOwner = existing.tenantId === payload.userId;
     const isAdmin = payload.role === 'ADMIN';
     if (!isOwner && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    await prisma.maintenanceTicket.delete({ where: { id: params.id } });
+    await prisma.maintenanceTicket.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Ticket DELETE Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-

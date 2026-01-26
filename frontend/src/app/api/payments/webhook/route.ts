@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const sig = request.headers.get('stripe-signature');
     if (!sig) {
@@ -38,4 +38,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-
