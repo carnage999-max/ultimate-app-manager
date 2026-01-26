@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import axios from 'axios';
@@ -56,8 +56,11 @@ function CheckoutForm({ amount }: { amount: number }) {
 export default function PaymentsPage() {
   const [amount, setAmount] = useState('1200');
   const [clientSecret, setClientSecret] = useState('');
+  const [isInitiating, setIsInitiating] = useState(false);
 
   const initiatePayment = async () => {
+    if (isInitiating) return; // prevent double init
+    setIsInitiating(true);
     try {
       const res = await axios.post('/api/payments/create-intent', {
         amount: parseFloat(amount),
@@ -66,6 +69,8 @@ export default function PaymentsPage() {
     } catch (error) {
       console.error(error);
       alert('Failed to initialize payment.');
+    } finally {
+      setIsInitiating(false);
     }
   };
 
@@ -90,8 +95,8 @@ export default function PaymentsPage() {
                         className="mt-1"
                      />
                    </div>
-                   <Button onClick={initiatePayment} className="w-full">
-                      Proceed to Pay
+                   <Button onClick={initiatePayment} className="w-full" disabled={isInitiating}>
+                      {isInitiating ? (<><Loader2 className="animate-spin mr-2 h-4 w-4" />Processing...</>) : 'Proceed to Pay'}
                    </Button>
                 </div>
               ) : (
@@ -103,7 +108,7 @@ export default function PaymentsPage() {
               )}
            </Card>
 
-           <Card className="p-6 bg-muted/20">
+           <Card className="p-6 bg-muted/20 hover:-translate-y-0.5 transition-transform">
               <h3 className="font-semibold text-lg mb-4">Payment History</h3>
               <div className="space-y-4">
                   {/* Placeholder History */}
@@ -127,3 +132,4 @@ export default function PaymentsPage() {
     </div>
   );
 }
+

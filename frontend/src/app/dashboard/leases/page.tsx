@@ -1,11 +1,12 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { Plus, Search, FileText, Calendar, DollarSign, User as UserIcon } from 'lucide-react';
+import { Plus, Search, FileText, Calendar, DollarSign, User as UserIcon, Loader2 } from 'lucide-react';
+import { StatusChip } from '@/components/ui/StatusChip';
 
 interface Lease {
   id: string;
@@ -23,6 +24,7 @@ export default function LeasesPage() {
   const [leases, setLeases] = useState<Lease[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   // Form State
   const [newLease, setNewLease] = useState({
@@ -49,6 +51,8 @@ export default function LeasesPage() {
 
   const handleCreateLease = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return; // prevent double submit
+    setSubmitting(true);
     try {
       await axios.post('/api/leases', newLease);
       setShowCreateForm(false);
@@ -57,6 +61,8 @@ export default function LeasesPage() {
       setNewLease({ tenantEmail: '', rentAmount: '', startDate: '', endDate: '' });
     } catch (error) {
       alert('Failed to create lease. Check if tenant email exists.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -64,7 +70,28 @@ export default function LeasesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Lease Management</h2>
+          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2 flex-wrap">
+            <span>Lease Management</span>
+            <span className="text-muted-foreground text-lg">({leases.length})</span>
+            {/* Per-status chips */}
+            {(() => {
+              const counts: Record<string, number> = leases.reduce((acc, l) => {
+                const key = (l.status || 'UNKNOWN').toUpperCase();
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>);
+              const order = ['ACTIVE'];
+              const entries = Object.entries(counts).sort((a, b) => {
+                const ia = order.indexOf(a[0]);
+                const ib = order.indexOf(b[0]);
+                if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+                return a[0].localeCompare(b[0]);
+              });
+              return entries.map(([status, count]) => (
+                <StatusChip key={status} status={status} count={count} />
+              ));
+            })()}
+          </h2>
           <p className="text-muted-foreground">View and manage property leases.</p>
         </div>
         <Button onClick={() => setShowCreateForm(!showCreateForm)}>
@@ -76,7 +103,7 @@ export default function LeasesPage() {
       {showCreateForm && (
         <Card className="p-6 border-secondary/20 bg-secondary/5">
           <h3 className="text-lg font-semibold mb-4">Create New Lease</h3>
-          <form onSubmit={handleCreateLease} className="grid gap-4 md:grid-cols-2">
+          <form onSubmit={handleCreateLease} className="grid gap-6 md:grid-cols-2">
             <div>
               <label className="text-sm font-medium">Tenant Email</label>
               <Input 
@@ -115,8 +142,10 @@ export default function LeasesPage() {
               />
             </div>
             <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)}>Cancel</Button>
-              <Button type="submit">Create Lease</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)} disabled={submitting}>Cancel</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</>) : 'Create Lease'}
+              </Button>
             </div>
           </form>
         </Card>
@@ -125,9 +154,9 @@ export default function LeasesPage() {
       {loading ? (
         <div className="text-center py-10">Loading leases...</div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {leases.map((lease) => (
-            <Card key={lease.id} className="p-6 hover:shadow-md transition-shadow">
+            <Card key={lease.id} className="p-6 hover:-translate-y-0.5 transition-transform">
                <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
@@ -138,9 +167,7 @@ export default function LeasesPage() {
                       <p className="text-xs text-muted-foreground">{lease.tenant.email}</p>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${lease.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                    {lease.status}
-                  </span>
+                  <StatusChip status={lease.status || 'UNKNOWN'} />
                </div>
                
                <div className="space-y-3 text-sm">
@@ -178,3 +205,4 @@ export default function LeasesPage() {
     </div>
   );
 }
+

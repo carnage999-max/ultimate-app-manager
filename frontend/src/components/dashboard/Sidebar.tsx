@@ -30,7 +30,7 @@ export function Sidebar() {
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg">
           <Image src="/logo.png" alt="Logo" width={28} height={28} className="rounded-md" />
-          <span>UltiManager</span>
+          <span>Ultimate Apartment manager</span>
         </Link>
       </div>
       <div className="flex-1 overflow-y-auto py-4">

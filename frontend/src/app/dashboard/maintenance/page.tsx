@@ -1,11 +1,12 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { Wrench, Plus, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Wrench, Plus, Clock, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { cn } from '@/lib/utils';
 
 interface Ticket {
@@ -30,6 +31,7 @@ export default function MaintenancePage() {
     description: '',
     priority: 'MEDIUM',
   });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchTickets();
@@ -48,6 +50,8 @@ export default function MaintenancePage() {
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return; // prevent double submit
+    setSubmitting(true);
     try {
       await axios.post('/api/maintenance', newTicket);
       setShowCreateForm(false);
@@ -55,6 +59,8 @@ export default function MaintenancePage() {
       setNewTicket({ title: '', description: '', priority: 'MEDIUM' });
     } catch (error) {
       alert('Failed to create ticket.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -71,7 +77,23 @@ export default function MaintenancePage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Maintenance</h2>
+          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2 flex-wrap">
+            <span>Maintenance</span>
+            <span className="text-muted-foreground text-lg">({tickets.length})</span>
+            {/* Per-status chips */}
+            {(() => {
+              const counts: Record<string, number> = tickets.reduce((acc, t) => {
+                const key = (t.status || 'OPEN').toUpperCase();
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>);
+              const order = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+              const entries = Object.entries(counts).sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
+              return entries.map(([status, count]) => (
+                <StatusChip key={status} status={status} count={count} />
+              ));
+            })()}
+          </h2>
           <p className="text-muted-foreground">Track and manage maintenance requests.</p>
         </div>
         <Button onClick={() => setShowCreateForm(!showCreateForm)}>
@@ -117,8 +139,10 @@ export default function MaintenancePage() {
               </select>
             </div>
             <div className="flex justify-end gap-2 mt-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)}>Cancel</Button>
-              <Button type="submit">Submit Request</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)} disabled={submitting}>Cancel</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>) : 'Submit Request'}
+              </Button>
             </div>
           </form>
         </Card>
@@ -129,10 +153,10 @@ export default function MaintenancePage() {
       ) : (
         <div className="space-y-4">
           {tickets.map((ticket) => (
-            <Card key={ticket.id} className="p-6 flex flex-col md:flex-row gap-6 hover:border-secondary/50 transition-colors">
+            <Card key={ticket.id} className="p-6 hover:-translate-y-0.5 transition-transform flex flex-col md:flex-row gap-6 hover:border-secondary/50 transition-colors">
                <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-3">
-                     <span className={cn("px-2 py-0.5 rounded textxs font-bold uppercase", getPriorityColor(ticket.priority))}>
+                     <span className={cn("px-2 py-0.5 rounded text-xs font-bold uppercase", getPriorityColor(ticket.priority))}>
                         {ticket.priority}
                      </span>
                      <h4 className="font-semibold text-lg">{ticket.title}</h4>
@@ -150,14 +174,9 @@ export default function MaintenancePage() {
                </div>
                
                <div className="flex items-center justify-between md:flex-col md:items-end md:justify-center gap-2 min-w-[120px]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{ticket.status.replace('_', ' ')}</span>
-                    {ticket.status === 'RESOLVED' ? (
-                       <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                       <AlertTriangle className="h-5 w-5 text-amber-500" />
-                    )}
-                  </div>
+               <div className="flex items-center gap-2">
+                    <StatusChip status={ticket.status} />
+                </div>
                   {/* Admin actions could go here */}
                </div>
             </Card>
@@ -175,3 +194,4 @@ export default function MaintenancePage() {
     </div>
   );
 }
+

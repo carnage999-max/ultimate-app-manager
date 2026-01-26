@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, name, role } = body;
+    const { email, password, name } = body;
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Missing Required Fields' }, { status: 400 });
@@ -22,12 +22,13 @@ export async function POST(request: Request) {
 
     const hashedPassword = await hashPassword(password);
 
+    // Always register as TENANT. Admin accounts must be created by an existing admin via a secure path or seeding.
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        role: role || 'TENANT', // Default to TENANT
+        role: 'TENANT',
       },
     });
 
@@ -66,6 +67,10 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Registration Error:', error);
+    const message = (error as any)?.message || '';
+    if (message.includes('Authentication failed') || (error as any)?.name === 'PrismaClientInitializationError') {
+      return NextResponse.json({ error: 'Database unavailable. Check DATABASE_URL credentials.' }, { status: 503 });
+    }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

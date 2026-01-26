@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @plugin "tailwindcss-animate";
 
@@ -95,4 +95,31 @@ body {
 /* Glassmorphism utilities */
 .glass {
     @apply bg-background/60 backdrop-blur-lg border border-white/10;
+}
+
+/* removed marquee */
+
+/* Premium hero gradient */
+.bg-hero {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, hsl(var(--secondary) / 0.18), transparent 60%),
+    radial-gradient(800px 400px at 12% 8%, hsl(var(--secondary) / 0.12), transparent 60%),
+    radial-gradient(800px 400px at 88% 8%, hsl(var(--secondary) / 0.12), transparent 60%),
+    hsl(var(--background));
+}
+
+/* Diagonal helpers */
+.angle-bottom { clip-path: polygon(0 60%, 100% 0, 100% 100%, 0% 100%); }
+.angle-top { clip-path: polygon(0 0, 100% 60%, 100% 100%, 0% 100%); }
+
+/* iOS-like soft card */
+.soft-card {
+  @apply rounded-2xl border backdrop-blur-xl;
+  background: color-mix(in oklab, hsl(var(--background)) 70%, white 30%);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+  transition: box-shadow .3s ease, transform .3s ease, background .3s ease;
+}
+.soft-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.16);
 }

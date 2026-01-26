@@ -1,36 +1,61 @@
-import { prisma } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { prisma } from '@/lib/db';
+import Link from 'next/link';
 import { 
   Users, 
-  DollarSign, 
   Activity, 
   ClipboardList,
   ShieldCheck,
+  FileText,
+  AlertTriangle,
   User
 } from 'lucide-react';
 
 async function getData() {
   const token = (await cookies()).get('token')?.value;
   if (!token) return null;
-  
   const payload = verifyToken(token) as { userId: string; role: string } | null;
   if (!payload) return null;
+  try {
+    const [tenantsCount, activeLeasesCount, openTicketsCount, resolvedTicketsCount, recentTickets] = await Promise.all([
+      prisma.user.count({ where: { role: 'TENANT' } }),
+      prisma.lease.count({ where: { status: 'ACTIVE' } }),
+      prisma.maintenanceTicket.count({ where: { OR: [{ status: 'OPEN' }, { status: 'IN_PROGRESS' }] } }),
+      prisma.maintenanceTicket.count({ where: { status: 'RESOLVED' } }),
+      prisma.maintenanceTicket.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { tenant: { select: { name: true } } },
+      }),
+    ]);
 
-  // Mock data fetching logic based on role
-  // In a real app, we would fetch stats from Prisma
-  return {
-    role: payload.role,
-    userId: payload.userId,
-    userName: 'User', // Would fetch
-  };
+    return {
+      role: payload.role,
+      userId: payload.userId,
+      tenantsCount,
+      activeLeasesCount,
+      openTicketsCount,
+      resolvedTicketsCount,
+      recentTickets,
+    };
+  } catch (e) {
+    // Fallback to zeros if DB unavailable
+    return {
+      role: payload.role,
+      userId: payload.userId,
+      tenantsCount: 0,
+      activeLeasesCount: 0,
+      openTicketsCount: 0,
+      resolvedTicketsCount: 0,
+      recentTickets: [] as any[],
+    };
+  }
 }
 
 export default async function DashboardPage() {
   const data = await getData();
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
@@ -38,9 +63,8 @@ export default async function DashboardPage() {
          <p className="text-muted-foreground">Welcome back to your dashboard.</p>
       </div>
 
-      {/* Role specific content */}
       {data?.role === 'ADMIN' ? (
-        <div className="rounded-xl border border-secondary/50 bg-secondary/10 p-6">
+        <div className="soft-card border-secondary/50 bg-secondary/10 p-6">
            <h3 className="flex items-center gap-2 text-lg font-bold text-secondary-foreground">
              <ShieldCheck className="h-5 w-5" />
              Admin Actions
@@ -49,12 +73,12 @@ export default async function DashboardPage() {
              You have full access to manage tenants, leases, and system settings.
            </p>
            <div className="mt-4 flex gap-4">
-              <Button size="sm">Manage Users</Button>
-              <Button size="sm" variant="outline">System Logs</Button>
+              <Link href="/dashboard/leases"><Button size="sm">Manage Users</Button></Link>
+              <Link href="/dashboard/maintenance"><Button size="sm" variant="outline">System Logs</Button></Link>
            </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-6">
+        <div className="soft-card border-blue-500/20 bg-blue-500/5 p-6">
            <h3 className="flex items-center gap-2 text-lg font-bold text-blue-600">
              <User className="h-5 w-5" />
              Tenant Actions
@@ -63,65 +87,72 @@ export default async function DashboardPage() {
              View your lease details, pay rent, and submit maintenance tickets.
            </p>
            <div className="mt-4 flex gap-4">
-              <Button size="sm">Pay Rent</Button>
-              <Button size="sm" variant="outline">Request Maintenance</Button>
+              <Link href="/dashboard/payments"><Button size="sm">Pay Rent</Button></Link>
+              <Link href="/dashboard/maintenance"><Button size="sm" variant="outline">Request Maintenance</Button></Link>
            </div>
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard 
-          title="Total Revenue" 
-          value="$45,231.89" 
-          description="+20.1% from last month"
-          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} 
-        />
-        <StatsCard 
-          title="Active Leases" 
-          value="+2350" 
-          description="+180.1% from last month"
+          title="Tenants" 
+          value={String(data?.tenantsCount ?? 0)} 
+          description="Total registered tenants"
           icon={<Users className="h-4 w-4 text-muted-foreground" />} 
         />
         <StatsCard 
-          title="Open Tickets" 
-          value="12" 
-          description="-10% from last month"
-          icon={<ClipboardList className="h-4 w-4 text-muted-foreground" />} 
+          title="Active Leases" 
+          value={String(data?.activeLeasesCount ?? 0)} 
+          description="Currently active leases"
+          icon={<FileText className="h-4 w-4 text-muted-foreground" />} 
         />
         <StatsCard 
-          title="Active Now" 
-          value="+573" 
-          description="+201 since last hour"
-          icon={<Activity className="h-4 w-4 text-muted-foreground" />} 
+          title="Open Tickets" 
+          value={String(data?.openTicketsCount ?? 0)} 
+          description="Open or in-progress"
+          icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} 
+        />
+        <StatsCard 
+          title="Resolved Tickets" 
+          value={String(data?.resolvedTicketsCount ?? 0)} 
+          description="Closed as resolved"
+          icon={<ShieldCheck className="h-4 w-4 text-muted-foreground" />} 
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-         <div className="col-span-4 rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+         <div className="col-span-4 soft-card p-6">
             <h3 className="font-semibold leading-none tracking-tight">Recent Activity</h3>
             <p className="text-sm text-muted-foreground mt-2">Latest actions on the platform.</p>
             <div className="mt-4 h-[200px] flex items-center justify-center border-2 border-dashed rounded-lg">
                 <p className="text-muted-foreground text-sm">Chart Placeholder</p>
             </div>
          </div>
-         <div className="col-span-3 rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+         <div className="col-span-3 soft-card p-6">
             <h3 className="font-semibold leading-none tracking-tight">Recent Tickets</h3>
             <p className="text-sm text-muted-foreground mt-2">Latest maintenance requests.</p>
-             <div className="mt-4 space-y-4">
-                {[1, 2, 3].map((_, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                     <div className="h-9 w-9 rounded-full bg-secondary/20 flex items-center justify-center">
-                       <WrenchIcon className="h-4 w-4 text-secondary-foreground" />
-                     </div>
-                     <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">Leaking Faucet</p>
-                        <p className="text-xs text-muted-foreground">Apt 4B • 2 hours ago</p>
-                     </div>
-                     <div className="ml-auto text-xs font-semibold text-orange-500">OPEN</div>
+            <div className="mt-4 space-y-4">
+              {(data?.recentTickets ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No tickets yet.</p>
+              ) : (
+                (data?.recentTickets ?? []).map((t: any) => (
+                  <div key={t.id} className="flex items-center gap-4">
+                    <div className="h-9 w-9 rounded-full bg-secondary/20 flex items-center justify-center">
+                      <WrenchIcon className="h-4 w-4 text-secondary-foreground" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-none">{t.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(t.tenant?.name || 'Tenant')} • {new Date(t.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className={`ml-auto text-xs font-semibold ${t.status === 'RESOLVED' ? 'text-green-600' : 'text-orange-500'}`}>
+                      {t.status.replace('_', ' ')}
+                    </div>
                   </div>
-                ))}
-             </div>
+                ))
+              )}
+            </div>
          </div>
       </div>
     </div>
@@ -130,7 +161,7 @@ export default async function DashboardPage() {
 
 function StatsCard({ title, value, description, icon }: any) {
   return (
-    <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+    <div className="soft-card p-6">
       <div className="flex flex-row items-center justify-between space-y-0 pb-2">
         <h3 className="tracking-tight text-sm font-medium">{title}</h3>
         {icon}
@@ -159,3 +190,4 @@ function WrenchIcon(props: any) {
     </svg>
   )
 }
+

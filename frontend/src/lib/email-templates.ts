@@ -28,7 +28,7 @@ export async function sendWelcomeEmail({ userName, userEmail }: WelcomeEmailProp
             </div>
             
             <div style="background: #ffffff; padding: 40px 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
-              <h2 style="color: #1e293b; margin-top: 0;">Welcome, ${userName}! 👋</h2>
+              <h2 style="color: #1e293b; margin-top: 0;">Welcome, !</h2>
               
               <p style="color: #475569; font-size: 16px;">
                 Thank you for joining <strong>Ultimate Apartment Manager</strong>! We're excited to help you streamline your property management experience.
@@ -178,3 +178,8 @@ export async function sendMaintenanceNotification({
     return false;
   }
 }
+
+
+
+
+

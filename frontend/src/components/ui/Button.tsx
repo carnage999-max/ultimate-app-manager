@@ -19,9 +19,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
              "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground": variant === 'outline',
              "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80": variant === 'secondary',
              "hover:bg-accent hover:text-accent-foreground": variant === 'ghost',
-             "h-9 px-4 py-2": size === 'default',
-             "h-8 rounded-md px-3 text-xs": size === 'sm',
-             "h-10 rounded-md px-8": size === 'lg',
+             // Increased padding for all sizes
+             "h-10 px-5 py-3": size === 'default',
+             "h-9 rounded-md px-4 py-2 text-sm": size === 'sm',
+             "h-12 rounded-md px-10 py-4": size === 'lg',
              "h-9 w-9": size === 'icon',
           },
           className

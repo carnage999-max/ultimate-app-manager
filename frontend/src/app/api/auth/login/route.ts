@@ -48,6 +48,10 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Login Error:', error);
+    const message = (error as any)?.message || '';
+    if (message.includes('Authentication failed') || (error as any)?.name === 'PrismaClientInitializationError') {
+      return NextResponse.json({ error: 'Database unavailable. Check DATABASE_URL credentials.' }, { status: 503 });
+    }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
