@@ -46,13 +46,13 @@ export function SiteHeader() {
       {open ? (
         <div className="md:hidden">
           <div
-            className="fixed inset-0 bg-background animate-in fade-in duration-200 z-40"
+            className="fixed inset-0 h-screen min-h-[100dvh] w-screen bg-background/40 backdrop-blur-md animate-in fade-in duration-200 z-[90]"
             onClick={() => setOpen(false)}
           />
           <aside
             role="dialog"
             aria-modal="true"
-            className="fixed right-0 top-0 h-full w-72 max-w-[85vw] bg-background border-l shadow-xl p-6 animate-in slide-in-from-right duration-200 z-50"
+            className="fixed right-0 top-0 h-screen min-h-[100dvh] w-72 max-w-[85vw] bg-background border-l shadow-xl p-6 animate-in slide-in-from-right duration-200 z-[100]"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
