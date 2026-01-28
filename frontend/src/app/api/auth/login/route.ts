@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { comparePassword, signToken } from '@/lib/auth';
+import { comparePassword, signAccessToken, signRefreshToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
@@ -26,13 +26,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid Credentials' }, { status: 401 });
     }
 
-    const token = signToken({ userId: user.id, role: user.role });
+    const accessToken = signAccessToken({ userId: user.id, role: user.role });
+    const refreshToken = signRefreshToken({ userId: user.id, role: user.role });
 
-    (await cookies()).set('token', token, {
+    const jar = await cookies();
+    jar.set('token', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 15, // 15 minutes
+      path: '/',
+    });
+    jar.set('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',
     });
 
@@ -43,7 +52,8 @@ export async function POST(request: NextRequest) {
         name: user.name,
         role: user.role,
       },
-      token,
+      token: accessToken,
+      refreshToken,
     }, { status: 200 });
 
   } catch (error) {

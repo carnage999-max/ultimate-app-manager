@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/Button';
 
 const sidebarItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { href: '/dashboard/tenants', label: 'Tenants', icon: LayoutDashboard },
   { href: '/dashboard/leases', label: 'Leases', icon: FileText },
   { href: '/dashboard/maintenance', label: 'Maintenance', icon: Wrench },
   { href: '/dashboard/payments', label: 'Payments', icon: CreditCard },

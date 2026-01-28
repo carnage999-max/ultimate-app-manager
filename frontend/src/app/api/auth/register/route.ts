@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { hashPassword, signToken } from '@/lib/auth';
+import { hashPassword, signAccessToken, signRefreshToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
@@ -32,14 +32,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const token = signToken({ userId: user.id, role: user.role });
+    const accessToken = signAccessToken({ userId: user.id, role: user.role });
+    const refreshToken = signRefreshToken({ userId: user.id, role: user.role });
 
-    // Set Cookie
-    (await cookies()).set('token', token, {
+    // Set Cookies
+    const jar = await cookies();
+    jar.set('token', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
+      maxAge: 60 * 15, // 15 minutes
+      path: '/',
+    });
+    jar.set('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',
     });
 
@@ -62,7 +71,8 @@ export async function POST(request: NextRequest) {
         name: user.name,
         role: user.role,
       },
-      token,
+      token: accessToken,
+      refreshToken,
     }, { status: 201 });
 
   } catch (error) {

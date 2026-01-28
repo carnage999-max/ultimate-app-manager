@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { startDate, endDate, rentAmount, tenantEmail } = body;
+    const { startDate, endDate, rentAmount, tenantEmail, documentUrl } = body;
 
     // Find tenant by email
     const tenant = await prisma.user.findUnique({ where: { email: tenantEmail } });
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
         endDate: new Date(endDate),
         rentAmount: parseFloat(rentAmount),
         tenantId: tenant.id,
+        documentUrl: typeof documentUrl === 'string' ? documentUrl : undefined,
       }
     });
 
