@@ -46,6 +46,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { startDate, endDate, rentAmount, tenantEmail, documentUrl } = body;
 
+    if (!tenantEmail || !startDate || !endDate || rentAmount === undefined || rentAmount === null || rentAmount === '') {
+      return NextResponse.json({ error: 'Missing required fields (tenantEmail, dates, rentAmount).' }, { status: 400 });
+    }
+
+    const rentValue = Number(rentAmount);
+    if (!Number.isFinite(rentValue)) {
+      return NextResponse.json({ error: 'Invalid rent amount.' }, { status: 400 });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return NextResponse.json({ error: 'Invalid start or end date.' }, { status: 400 });
+    }
+
     // Find tenant by email
     const tenant = await prisma.user.findUnique({ where: { email: tenantEmail } });
     if (!tenant) {
@@ -54,9 +69,9 @@ export async function POST(request: NextRequest) {
 
     const lease = await prisma.lease.create({
       data: {
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        rentAmount: parseFloat(rentAmount),
+        startDate: start,
+        endDate: end,
+        rentAmount: rentValue,
         tenantId: tenant.id,
         documentUrl: typeof documentUrl === 'string' ? documentUrl : undefined,
       }
