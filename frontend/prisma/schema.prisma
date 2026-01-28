@@ -59,6 +59,7 @@ model MaintenanceTicket {
   id          String   @id @default(uuid())
   title       String
   description String
+  attachments String[] @default([])
   status      TicketStatus   @default(OPEN)
   priority    TicketPriority   @default(MEDIUM)
   

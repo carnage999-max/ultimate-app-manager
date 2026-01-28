@@ -5,6 +5,7 @@ import axios from 'axios';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { FileUploader } from '@/components/ui/FileUploader';
 import { Wrench, Plus, Clock, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { cn } from '@/lib/utils';
@@ -18,7 +19,16 @@ interface Ticket {
   createdAt: string;
   tenant?: {
     name: string;
+    email: string;
+    lease?: {
+      id: string;
+      name?: string | null;
+      startDate: string;
+      endDate: string;
+      rentAmount: number;
+    } | null;
   }
+  attachments?: string[];
 }
 
 export default function MaintenancePage() {
@@ -30,11 +40,26 @@ export default function MaintenancePage() {
     title: '',
     description: '',
     priority: 'MEDIUM',
+    attachments: [] as string[],
   });
   const [submitting, setSubmitting] = useState(false);
+  const [uploaderKey, setUploaderKey] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [attendingId, setAttendingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTickets();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await axios.get('/api/auth/me');
+        setIsAdmin(res.data?.user?.role === 'ADMIN');
+      } catch (error) {
+        console.error('Failed to load user role', error);
+      }
+    })();
   }, []);
 
   const fetchTickets = async () => {
@@ -56,11 +81,39 @@ export default function MaintenancePage() {
       await axios.post('/api/maintenance', newTicket);
       setShowCreateForm(false);
       fetchTickets();
-      setNewTicket({ title: '', description: '', priority: 'MEDIUM' });
+      setNewTicket({ title: '', description: '', priority: 'MEDIUM', attachments: [] });
+      setUploaderKey((k) => k + 1);
     } catch (error) {
       alert('Failed to create ticket.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleAttachmentUploaded = (url: string) => {
+    setNewTicket((prev) => {
+      if (prev.attachments.length >= 5) return prev;
+      return { ...prev, attachments: [...prev.attachments, url] };
+    });
+    setUploaderKey((k) => k + 1);
+  };
+
+  const removeAttachment = (url: string) => {
+    setNewTicket((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((att) => att !== url),
+    }));
+  };
+
+  const markTicketAttended = async (ticketId: string) => {
+    setAttendingId(ticketId);
+    try {
+      await axios.patch(`/api/maintenance/${ticketId}`, { status: 'RESOLVED' });
+      fetchTickets();
+    } catch (error) {
+      alert('Failed to mark ticket as attended.');
+    } finally {
+      setAttendingId(null);
     }
   };
 
@@ -96,7 +149,17 @@ export default function MaintenancePage() {
           </h2>
           <p className="text-muted-foreground">Track and manage maintenance requests.</p>
         </div>
-        <Button onClick={() => setShowCreateForm(!showCreateForm)}>
+        <Button
+          onClick={() => {
+            if (showCreateForm) {
+              setShowCreateForm(false);
+              setNewTicket({ title: '', description: '', priority: 'MEDIUM', attachments: [] });
+              setUploaderKey((k) => k + 1);
+            } else {
+              setShowCreateForm(true);
+            }
+          }}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Request Service
         </Button>
@@ -138,8 +201,57 @@ export default function MaintenancePage() {
                 <option value="URGENT">Urgent - Emergency</option>
               </select>
             </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Photo Attachments</label>
+                <span className="text-xs text-muted-foreground">
+                  {newTicket.attachments.length}/5 uploaded
+                </span>
+              </div>
+              {newTicket.attachments.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {newTicket.attachments.map((url) => (
+                    <div key={url} className="relative group">
+                      <img
+                        src={url}
+                        alt="Ticket attachment"
+                        className="h-20 w-20 rounded-lg object-cover border"
+                      />
+                      <button
+                        type="button"
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-6 w-6 text-xs opacity-0 group-hover:opacity-100 transition"
+                        onClick={() => removeAttachment(url)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {newTicket.attachments.length < 5 && (
+                <div className="mt-3">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Upload up to 5 images (.jpg, .png). Each upload replaces this control so you can add multiple files.
+                  </div>
+                  <div className="rounded-lg border bg-background/50 p-3">
+                    <FileUploader key={uploaderKey} onUploadComplete={handleAttachmentUploaded} />
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex justify-end gap-2 mt-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)} disabled={submitting}>Cancel</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setNewTicket({ title: '', description: '', priority: 'MEDIUM', attachments: [] });
+                  setUploaderKey((k) => k + 1);
+                }}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
               <Button type="submit" disabled={submitting}>
                 {submitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>) : 'Submit Request'}
               </Button>
@@ -152,8 +264,16 @@ export default function MaintenancePage() {
         <div className="text-center py-10">Loading tickets...</div>
       ) : (
         <div className="space-y-4">
-          {tickets.map((ticket) => (
-            <Card key={ticket.id} className="p-6 hover:-translate-y-0.5 transition-transform flex flex-col md:flex-row gap-6 hover:border-secondary/50 transition-colors">
+          {tickets.map((ticket) => {
+            const isResolved = ticket.status === 'RESOLVED';
+            return (
+            <Card
+              key={ticket.id}
+              className={cn(
+                "p-6 hover:-translate-y-0.5 transition-transform flex flex-col md:flex-row gap-6 hover:border-secondary/50 transition-colors",
+                isResolved && !isAdmin && 'opacity-60 bg-muted/60 hover:-translate-y-0'
+              )}
+            >
                <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-3">
                      <span className={cn("px-2 py-0.5 rounded text-xs font-bold uppercase", getPriorityColor(ticket.priority))}>
@@ -162,25 +282,77 @@ export default function MaintenancePage() {
                      <h4 className="font-semibold text-lg">{ticket.title}</h4>
                   </div>
                   <p className="text-muted-foreground">{ticket.description}</p>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
+                 <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-2">
                      <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {new Date(ticket.createdAt).toLocaleDateString()}
                      </span>
                      {ticket.tenant && (
-                       <span>Requested by: {ticket.tenant.name}</span>
+                       <span className="flex flex-col sm:flex-row sm:items-center gap-1">
+                         <span>Requested by: {ticket.tenant.name || 'Tenant'}</span>
+                         <span className="text-muted-foreground/70">{ticket.tenant.email}</span>
+                       </span>
                      )}
-                  </div>
+                     {ticket.tenant?.lease && (
+                       <span className="flex flex-col gap-1">
+                         <span className="font-medium text-muted-foreground/90">
+                           Lease: {ticket.tenant.lease.name || 'Untitled'}
+                         </span>
+                         <span>
+                           {new Date(ticket.tenant.lease.startDate).toLocaleDateString()} –{' '}
+                           {new Date(ticket.tenant.lease.endDate).toLocaleDateString()}
+                         </span>
+                       </span>
+                     )}
+                 </div>
+                 {ticket.attachments && ticket.attachments.length > 0 && (
+                   <div className="mt-4">
+                     <p className="text-sm font-medium mb-2">Attachments</p>
+                     <div className="flex flex-wrap gap-3">
+                       {ticket.attachments.map((url) => (
+                         <a
+                           key={url}
+                           href={url}
+                           target="_blank"
+                           rel="noreferrer"
+                           className="relative block"
+                         >
+                           <img
+                             src={url}
+                             alt="Attachment"
+                             className="h-20 w-20 rounded-lg object-cover border hover:ring-2 hover:ring-primary transition"
+                           />
+                         </a>
+                       ))}
+                     </div>
+                   </div>
+                 )}
                </div>
                
-               <div className="flex items-center justify-between md:flex-col md:items-end md:justify-center gap-2 min-w-[120px]">
-               <div className="flex items-center gap-2">
+               <div className="flex items-center justify-between md:flex-col md:items-end md:justify-center gap-2 min-w-[140px]">
+                 <div className="flex items-center gap-2">
                     <StatusChip status={ticket.status} />
-                </div>
-                  {/* Admin actions could go here */}
+                 </div>
+                 {isAdmin && ticket.status !== 'RESOLVED' && (
+                   <Button
+                     variant="outline"
+                     size="sm"
+                     onClick={() => markTicketAttended(ticket.id)}
+                     disabled={attendingId === ticket.id}
+                   >
+                     {attendingId === ticket.id ? (
+                       <>
+                         <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                         Updating...
+                       </>
+                     ) : (
+                       'Mark Attended'
+                     )}
+                   </Button>
+                 )}
                </div>
             </Card>
-          ))}
+          )})}
           
           {tickets.length === 0 && (
              <div className="py-12 border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-center">

@@ -12,14 +12,25 @@ export async function GET(request: NextRequest) {
 
     let tickets;
 
+    const tenantInclude = {
+      select: {
+        name: true,
+        email: true,
+        lease: {
+          select: { id: true, name: true, startDate: true, endDate: true, rentAmount: true }
+        }
+      }
+    };
+
     if (payload.role === 'ADMIN') {
       tickets = await prisma.maintenanceTicket.findMany({
-        include: { tenant: { select: { name: true, email: true } } },
+        include: { tenant: tenantInclude },
         orderBy: { createdAt: 'desc' }
       });
     } else {
       tickets = await prisma.maintenanceTicket.findMany({
         where: { tenantId: payload.userId },
+        include: { tenant: tenantInclude },
         orderBy: { createdAt: 'desc' },
       });
     }
@@ -40,7 +51,12 @@ export async function POST(request: NextRequest) {
     if (!payload) return NextResponse.json({ error: 'Invalid Token' }, { status: 401 });
 
     const body = await request.json();
-    const { title, description, priority } = body;
+    const { title, description, priority, attachments } = body;
+    const safeAttachments = Array.isArray(attachments)
+      ? attachments
+          .filter((url: unknown) => typeof url === 'string' && url.trim().length > 0)
+          .slice(0, 5)
+      : [];
 
     const ticket = await prisma.maintenanceTicket.create({
       data: {
@@ -48,12 +64,16 @@ export async function POST(request: NextRequest) {
         description,
         priority: priority || 'MEDIUM',
         tenantId: payload.userId,
+        attachments: safeAttachments,
       },
       include: {
         tenant: {
           select: {
             name: true,
             email: true,
+            lease: {
+              select: { id: true, name: true, startDate: true, endDate: true, rentAmount: true }
+            }
           }
         }
       }
