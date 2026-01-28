@@ -45,6 +45,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   if (body.rentAmount !== undefined) data.rentAmount = parseFloat(body.rentAmount);
   if (typeof body.status === 'string') data.status = body.status;
   if (typeof body.documentUrl === 'string') data.documentUrl = body.documentUrl;
+  if (typeof body.name === 'string') data.name = body.name;
   if (typeof body.tenantEmail === 'string' && body.tenantEmail.trim()) {
     const newTenant = await prisma.user.findUnique({ where: { email: body.tenantEmail.trim() } });
     if (!newTenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });

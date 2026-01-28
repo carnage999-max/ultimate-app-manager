@@ -6,9 +6,10 @@ export async function GET(request: NextRequest) {
   try {
     const token = await getAuthToken(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     const payload = verifyToken(token) as { userId: string, role: string } | null;
     if (!payload) return NextResponse.json({ error: 'Invalid Token' }, { status: 401 });
+
+    const adminQuery = request.nextUrl.searchParams.get('admin');
 
     let leases;
 
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' }
       });
     } else {
+      if (adminQuery === '1') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       // Tenant sees only their own lease
       leases = await prisma.lease.findMany({
         where: { tenantId: payload.userId },
@@ -74,6 +76,7 @@ export async function POST(request: NextRequest) {
         rentAmount: rentValue,
         tenantId: tenant.id,
         documentUrl: typeof documentUrl === 'string' ? documentUrl : undefined,
+        name: typeof body.name === 'string' ? body.name : null,
       }
     });
 

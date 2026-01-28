@@ -44,6 +44,7 @@ model Lease {
   startDate   DateTime
   endDate     DateTime
   rentAmount  Float
+  name        String?
   status      String   @default("ACTIVE")
   documentUrl String?
   

@@ -14,6 +14,7 @@ interface Lease {
   endDate: string;
   rentAmount: number;
   status: string;
+  name?: string | null;
   tenant: {
     name: string;
     email: string;
@@ -35,6 +36,7 @@ export default function LeasesPage() {
     startDate: '',
     endDate: '',
     documentUrl: '',
+    name: '',
   });
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export default function LeasesPage() {
       setShowCreateForm(false);
       fetchLeases();
       // Reset form
-      setNewLease({ tenantEmail: '', rentAmount: '', startDate: '', endDate: '', documentUrl: '' });
+      setNewLease({ tenantEmail: '', rentAmount: '', startDate: '', endDate: '', documentUrl: '', name: '' });
     } catch (error) {
       alert('Failed to create lease. Check if tenant email exists.');
     } finally {
@@ -76,6 +78,7 @@ export default function LeasesPage() {
     endDate: '',
     status: 'ACTIVE',
     documentUrl: '',
+    name: '',
   });
   const [editSubmitting, setEditSubmitting] = useState(false);
 
@@ -88,6 +91,7 @@ export default function LeasesPage() {
       endDate: lease.endDate.slice(0, 10),
       status: lease.status,
       documentUrl: '',
+      name: lease.name || '',
     });
   };
 
@@ -96,7 +100,7 @@ export default function LeasesPage() {
     if (!editingLease) return;
     setEditSubmitting(true);
     try {
-      await axios.patch(`/api/leases/${editingLease.id}`, editForm);
+          await axios.patch(`/api/leases/${editingLease.id}`, editForm);
       setEditingLease(null);
       fetchLeases();
     } catch (error) {
@@ -155,6 +159,14 @@ export default function LeasesPage() {
         <Card className="p-6 border-secondary/20 bg-secondary/5">
           <h3 className="text-lg font-semibold mb-4">Create New Lease</h3>
           <form onSubmit={handleCreateLease} className="grid gap-6 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium">Lease Name (optional)</label>
+              <Input
+                placeholder="Lease for Apt 2A"
+                value={newLease.name}
+                onChange={(e) => setNewLease({ ...newLease, name: e.target.value })}
+              />
+            </div>
             <div>
               <label className="text-sm font-medium">Tenant Email</label>
               <Input 
@@ -313,6 +325,10 @@ export default function LeasesPage() {
               <div>
                 <label className="text-sm font-medium">Document URL</label>
                 <Input placeholder="https://..." value={editForm.documentUrl} onChange={(e) => setEditForm({ ...editForm, documentUrl: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Lease Name</label>
+                <Input placeholder="Lease name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setEditingLease(null)}>Cancel</Button>

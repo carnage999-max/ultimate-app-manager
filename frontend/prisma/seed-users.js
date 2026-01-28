@@ -38,6 +38,7 @@ async function ensureReviewerLease(userId) {
       startDate: start,
       endDate: end,
       rentAmount: 1200,
+      name: 'Reviewer Demo Lease',
       status: 'ACTIVE',
       tenantId: userId,
     },
@@ -96,4 +97,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
