@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   description: "The premium solution for modern property management.",
 };
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function RootLayout({
   children,
 }: Readonly<{
