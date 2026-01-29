@@ -29,6 +29,8 @@ export function Sidebar() {
     .toUpperCase();
 
   const handleLogout = async () => {
+    const confirmed = typeof window === 'undefined' ? false : window.confirm('Are you sure you want to logout?');
+    if (!confirmed) return;
     await logout();
     router.push('/login');
   };
@@ -75,8 +77,8 @@ export function Sidebar() {
       </div>
       <div className="border-t p-4">
         <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
+          variant="destructive"
+          className="w-full justify-start gap-3"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4" />

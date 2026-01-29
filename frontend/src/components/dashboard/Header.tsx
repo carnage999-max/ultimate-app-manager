@@ -30,6 +30,8 @@ export function DashboardHeader() {
   if (!user) return null;
 
   const handleLogout = async () => {
+    const confirmed = typeof window === 'undefined' ? false : window.confirm('Are you sure you want to logout?');
+    if (!confirmed) return;
     await logout();
     router.push('/login');
   };
@@ -129,7 +131,7 @@ export function DashboardHeader() {
             </nav>
             <div className="mt-6 border-t pt-4">
               <button
-                className="flex items-center gap-3 text-sm font-medium text-muted-foreground hover:text-destructive"
+                className="flex items-center gap-3 text-sm font-medium text-destructive hover:text-destructive/80"
                 onClick={() => {
                   setOpen(false);
                   void handleLogout();

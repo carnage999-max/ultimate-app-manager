@@ -24,19 +24,24 @@ export function SiteHeader() {
       .toUpperCase();
   }, [user]);
 
+  const confirmAndLogout = async () => {
+    const confirmed = typeof window === 'undefined' ? false : window.confirm('Are you sure you want to logout?');
+    if (!confirmed) return false;
+    await logout();
+    return true;
+  };
+
   const handleLogout = async () => {
-    try {
-      await logout();
-    } finally {
+    const didLogout = await confirmAndLogout();
+    if (didLogout) {
       router.push('/login');
     }
   };
 
   const handleMobileLogout = async () => {
     setOpen(false);
-    try {
-      await logout();
-    } finally {
+    const didLogout = await confirmAndLogout();
+    if (didLogout) {
       router.push('/login');
     }
   };
@@ -71,7 +76,7 @@ export function SiteHeader() {
                 {initials || 'U'}
               </div>
             </div>
-            <Button size="sm" variant="outline" onClick={handleLogout}>
+            <Button size="sm" variant="destructive" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-1.5" />
               Log out
             </Button>
@@ -120,7 +125,7 @@ export function SiteHeader() {
                 <>
                   <Link className="hover:text-secondary" href="/dashboard" onClick={() => setOpen(false)}>Dashboard</Link>
                   <button
-                    className="flex items-center gap-2 text-left hover:text-secondary"
+                    className="flex items-center gap-2 text-left text-destructive hover:text-destructive/80"
                     onClick={handleMobileLogout}
                   >
                     <LogOut className="h-4 w-4" />

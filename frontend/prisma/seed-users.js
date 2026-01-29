@@ -51,12 +51,12 @@ async function main() {
 
   let adminCreds = {
     email: process.env.ADMIN_EMAIL || 'admin@ultimateapartmentmanager.com',
-    password: process.env.ADMIN_PASSWORD || Math.random().toString(36).slice(2) + '!Adm1n',
+    password: process.env.ADMIN_PASSWORD || 'Admin!2026',
     name: 'Administrator',
   };
   let reviewerCreds = {
     email: process.env.REVIEWER_EMAIL || 'reviewer@ultimateapartmentmanager.com',
-    password: process.env.REVIEWER_PASSWORD || Math.random().toString(36).slice(2) + '!Rev1ew',
+    password: process.env.REVIEWER_PASSWORD || 'Review!2026',
     name: 'Reviewer',
   };
 

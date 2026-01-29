@@ -24,10 +24,12 @@ export async function POST(request: NextRequest) {
     });
 
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    const fileUrl = uploadUrl.split('?')[0];
 
     return NextResponse.json({
       uploadUrl,
       fileKey,
+      fileUrl,
     });
 
   } catch (error) {

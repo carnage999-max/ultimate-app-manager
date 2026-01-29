@@ -1,12 +1,11 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { FileUploader } from '@/components/ui/FileUploader';
-import { Wrench, Plus, Clock, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Wrench, Plus, Clock, CheckCircle, AlertTriangle, Loader2, UploadCloud } from 'lucide-react';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { cn } from '@/lib/utils';
 
@@ -35,17 +34,22 @@ export default function MaintenancePage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  
   const [newTicket, setNewTicket] = useState({
     title: '',
     description: '',
     priority: 'MEDIUM',
-    attachments: [] as string[],
   });
   const [submitting, setSubmitting] = useState(false);
-  const [uploaderKey, setUploaderKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [attendingId, setAttendingId] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<Array<{ id: string; file: File; preview: string }>>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      attachments.forEach((att) => URL.revokeObjectURL(att.preview));
+    };
+  }, [attachments]);
 
   useEffect(() => {
     fetchTickets();
@@ -78,11 +82,12 @@ export default function MaintenancePage() {
     if (submitting) return; // prevent double submit
     setSubmitting(true);
     try {
-      await axios.post('/api/maintenance', newTicket);
+      const attachmentUrls = await uploadAttachments();
+      await axios.post('/api/maintenance', { ...newTicket, attachments: attachmentUrls });
       setShowCreateForm(false);
       fetchTickets();
-      setNewTicket({ title: '', description: '', priority: 'MEDIUM', attachments: [] });
-      setUploaderKey((k) => k + 1);
+      setNewTicket({ title: '', description: '', priority: 'MEDIUM' });
+      clearAttachments();
     } catch (error) {
       alert('Failed to create ticket.');
     } finally {
@@ -90,19 +95,61 @@ export default function MaintenancePage() {
     }
   };
 
-  const handleAttachmentUploaded = (url: string) => {
-    setNewTicket((prev) => {
-      if (prev.attachments.length >= 5) return prev;
-      return { ...prev, attachments: [...prev.attachments, url] };
+  const clearAttachments = () => {
+    setAttachments((prev) => {
+      prev.forEach((att) => URL.revokeObjectURL(att.preview));
+      return [];
     });
-    setUploaderKey((k) => k + 1);
   };
 
-  const removeAttachment = (url: string) => {
-    setNewTicket((prev) => ({
-      ...prev,
-      attachments: prev.attachments.filter((att) => att !== url),
-    }));
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Only image files are allowed.');
+      event.target.value = '';
+      return;
+    }
+    setAttachments((prev) => {
+      if (prev.length >= 5) {
+        alert('You can upload a maximum of 5 images.');
+        return prev;
+      }
+      const preview = URL.createObjectURL(file);
+      const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `att-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      return [...prev, { id, file, preview }];
+    });
+    event.target.value = '';
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => {
+      const target = prev.find((att) => att.id === id);
+      if (target) URL.revokeObjectURL(target.preview);
+      return prev.filter((att) => att.id !== id);
+    });
+  };
+
+  const uploadAttachments = async () => {
+    const urls: string[] = [];
+    for (const attachment of attachments) {
+      const { data } = await axios.post('/api/files/upload-url', {
+        filename: attachment.file.name,
+        contentType: attachment.file.type,
+      }, { withCredentials: true });
+
+      await axios.put(data.uploadUrl, attachment.file, {
+        headers: { 'Content-Type': attachment.file.type },
+      });
+
+      const directUrl = data.fileUrl || (typeof data.uploadUrl === 'string' ? data.uploadUrl.split('?')[0] : '');
+      if (directUrl) {
+        urls.push(directUrl);
+      }
+    }
+    return urls;
   };
 
   const markTicketAttended = async (ticketId: string) => {
@@ -153,8 +200,8 @@ export default function MaintenancePage() {
           onClick={() => {
             if (showCreateForm) {
               setShowCreateForm(false);
-              setNewTicket({ title: '', description: '', priority: 'MEDIUM', attachments: [] });
-              setUploaderKey((k) => k + 1);
+              setNewTicket({ title: '', description: '', priority: 'MEDIUM' });
+              clearAttachments();
             } else {
               setShowCreateForm(true);
             }
@@ -205,37 +252,45 @@ export default function MaintenancePage() {
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Photo Attachments</label>
                 <span className="text-xs text-muted-foreground">
-                  {newTicket.attachments.length}/5 uploaded
+                  {attachments.length}/5 selected
                 </span>
               </div>
-              {newTicket.attachments.length > 0 && (
+              {attachments.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-3">
-                  {newTicket.attachments.map((url) => (
-                    <div key={url} className="relative group">
+                  {attachments.map((att) => (
+                    <div key={att.id} className="relative group">
                       <img
-                        src={url}
+                        src={att.preview}
                         alt="Ticket attachment"
                         className="h-20 w-20 rounded-lg object-cover border"
                       />
                       <button
                         type="button"
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-6 w-6 text-xs opacity-0 group-hover:opacity-100 transition"
-                        onClick={() => removeAttachment(url)}
+                        onClick={() => removeAttachment(att.id)}
                       >
-                        ×
+                        x
                       </button>
                     </div>
                   ))}
                 </div>
               )}
-              {newTicket.attachments.length < 5 && (
+              {attachments.length < 5 && (
                 <div className="mt-3">
                   <div className="text-xs text-muted-foreground mb-2">
-                    Upload up to 5 images (.jpg, .png). Each upload replaces this control so you can add multiple files.
+                    Select up to 5 images (.jpg, .png). Files upload automatically when you submit the request.
                   </div>
-                  <div className="rounded-lg border bg-background/50 p-3">
-                    <FileUploader key={uploaderKey} onUploadComplete={handleAttachmentUploaded} />
-                  </div>
+                  <label className="rounded-lg border bg-background/50 p-3 flex items-center gap-2 cursor-pointer hover:border-secondary transition">
+                    <UploadCloud className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">Choose Photo</span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileSelected}
+                    />
+                  </label>
                 </div>
               )}
             </div>
@@ -245,8 +300,8 @@ export default function MaintenancePage() {
                 variant="outline"
                 onClick={() => {
                   setShowCreateForm(false);
-                  setNewTicket({ title: '', description: '', priority: 'MEDIUM', attachments: [] });
-                  setUploaderKey((k) => k + 1);
+                  setNewTicket({ title: '', description: '', priority: 'MEDIUM' });
+                  clearAttachments();
                 }}
                 disabled={submitting}
               >

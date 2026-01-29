@@ -98,12 +98,12 @@ export default function TenantsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Tenants</h2>
           <p className="text-muted-foreground">Manage users, assign leases, and send email reminders.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setEmailOpen(true)}>
             <Mail className="h-4 w-4 mr-2" /> Send Email
           </Button>
@@ -111,7 +111,7 @@ export default function TenantsPage() {
       </div>
 
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-center">
           <Input placeholder="Filter by name, email, role" value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
         {error ? (
@@ -168,8 +168,8 @@ export default function TenantsPage() {
 
       {/* Assign Lease Modal (simple inline) */}
       {leaseOpen && leaseFor ? (
-        <Card className="p-6 fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-background rounded-xl p-6 max-w-lg w-full border">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+          <div className="w-full max-w-lg rounded-xl border bg-background p-6 shadow-xl">
             <h3 className="text-lg font-semibold mb-4">Assign Lease — {leaseFor.email}</h3>
             <div className="grid gap-3">
               <div>
@@ -189,21 +189,21 @@ export default function TenantsPage() {
                 <FileUploader onUploadComplete={(url) => setLeaseForm({ ...leaseForm, documentUrl: url })} />
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-6">
+            <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-end">
               <Button variant="outline" onClick={() => setLeaseOpen(false)}>Cancel</Button>
               <Button onClick={createLease}>Assign</Button>
             </div>
           </div>
-        </Card>
+        </div>
       ) : null}
 
       {/* Email Modal */}
       {emailOpen ? (
-        <Card className="p-6 fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-background rounded-xl p-6 max-w-lg w-full border">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+          <div className="w-full max-w-lg rounded-xl border bg-background p-6 shadow-xl">
             <h3 className="text-lg font-semibold mb-4">Send Email</h3>
             <div className="grid gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <label className="text-sm font-medium">Template</label>
                 <select className="flex h-9 rounded-md border px-3 text-sm" value={template} onChange={(e) => applyTemplate(e.target.value)}>
                   <option value="none">Custom</option>
@@ -220,12 +220,12 @@ export default function TenantsPage() {
                 <p className="text-xs text-muted-foreground mt-1">Sending to {selectedUsers.length > 0 ? `${selectedUsers.length} selected` : 'all tenants'}.</p>
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-6">
+            <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-end">
               <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
               <Button onClick={sendEmails}><Mail className="h-4 w-4 mr-1" /> Send</Button>
             </div>
           </div>
-        </Card>
+        </div>
       ) : null}
     </div>
   );

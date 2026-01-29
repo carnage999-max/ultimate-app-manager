@@ -249,14 +249,14 @@ function AdminOverview({ stats }: { stats?: AdminStats }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <div className="col-span-4 soft-card p-6">
+        <div className="soft-card p-6 md:col-span-2 lg:col-span-4">
           <h3 className="font-semibold leading-none tracking-tight">Recent Activity</h3>
           <p className="text-sm text-muted-foreground mt-2">Latest actions on the platform.</p>
           <div className="mt-4 h-[200px] flex items-center justify-center border-2 border-dashed rounded-lg">
             <p className="text-muted-foreground text-sm">Chart Placeholder</p>
           </div>
         </div>
-        <div className="col-span-3 soft-card p-6">
+        <div className="soft-card p-6 md:col-span-2 lg:col-span-3">
           <h3 className="font-semibold leading-none tracking-tight">Recent Tickets</h3>
           <p className="text-sm text-muted-foreground mt-2">Latest maintenance requests.</p>
           <div className="mt-4 space-y-4">

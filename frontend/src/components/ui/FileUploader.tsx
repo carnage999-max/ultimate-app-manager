@@ -29,7 +29,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: (url: str
         contentType: file.type,
       });
 
-      const { uploadUrl, fileKey } = data;
+      const { uploadUrl, fileKey, fileUrl } = data;
 
       // 2. PUT file to S3
       await axios.put(uploadUrl, file, {
@@ -39,8 +39,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: (url: str
       });
 
       setUploaded(true);
-      // Construct public URL (assuming public bucket or via CLoudFront, otherwise we need a GET presigned url)
-      const publicUrl = `https://${process.env.NEXT_PUBLIC_AWS_BUCKET_NAME || 'apartment-manager-uploads'}.s3.amazonaws.com/${fileKey}`;
+      const publicUrl = fileUrl || (typeof uploadUrl === 'string' ? uploadUrl.split('?')[0] : `https://${process.env.NEXT_PUBLIC_AWS_BUCKET_NAME || 'apartment-manager-uploads'}.s3.amazonaws.com/${fileKey}`);
       onUploadComplete(publicUrl);
     } catch (error) {
       console.error('Upload failed:', error);
