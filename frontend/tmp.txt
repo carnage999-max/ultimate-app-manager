@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { Plus, FileText, Calendar, DollarSign, Loader2, Trash2, Edit, UploadCloud } from 'lucide-react';
+import { Plus, Search, FileText, Calendar, DollarSign, User as UserIcon, Loader2, Trash2, Edit, UploadCloud } from 'lucide-react';
 import { StatusChip } from '@/components/ui/StatusChip';
-import { useAuth } from '@/components/providers/AuthProvider';
 
 interface Lease {
   id: string;
@@ -30,9 +29,6 @@ export default function LeasesPage() {
   const [editingLease, setEditingLease] = useState<Lease | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Lease | null>(null);
   
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
-
   // Form State
   const [newLease, setNewLease] = useState({
     tenantEmail: '',
@@ -125,53 +121,41 @@ export default function LeasesPage() {
     }
   };
 
-  const statusSummary = useMemo(() => {
-    if (!isAdmin) return null;
-    const counts: Record<string, number> = leases.reduce((acc, lease) => {
-      const key = (lease.status || 'UNKNOWN').toUpperCase();
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    const order = ['ACTIVE'];
-    return Object.entries(counts).sort((a, b) => {
-      const ia = order.indexOf(a[0]);
-      const ib = order.indexOf(b[0]);
-      const va = ia === -1 ? Number.MAX_SAFE_INTEGER : ia;
-      const vb = ib === -1 ? Number.MAX_SAFE_INTEGER : ib;
-      if (va !== vb) return va - vb;
-      return a[0].localeCompare(b[0]);
-    });
-  }, [isAdmin, leases]);
-
-  const headingLabel = isAdmin ? 'Lease Management' : 'My Lease';
-  const subheading = isAdmin ? 'View and manage property leases.' : 'Review your current lease details.';
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2 flex-wrap">
-            <span>{headingLabel}</span>
-            {isAdmin ? (
-              <>
-                <span className="text-muted-foreground text-lg">({leases.length})</span>
-                {statusSummary?.map(([status, count]) => (
-                  <StatusChip key={status} status={status} count={count} />
-                ))}
-              </>
-            ) : null}
+            <span>Lease Management</span>
+            <span className="text-muted-foreground text-lg">({leases.length})</span>
+            {/* Per-status chips */}
+            {(() => {
+              const counts: Record<string, number> = leases.reduce((acc, l) => {
+                const key = (l.status || 'UNKNOWN').toUpperCase();
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>);
+              const order = ['ACTIVE'];
+              const entries = Object.entries(counts).sort((a, b) => {
+                const ia = order.indexOf(a[0]);
+                const ib = order.indexOf(b[0]);
+                if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+                return a[0].localeCompare(b[0]);
+              });
+              return entries.map(([status, count]) => (
+                <StatusChip key={status} status={status} count={count} />
+              ));
+            })()}
           </h2>
-          <p className="text-muted-foreground">{subheading}</p>
+          <p className="text-muted-foreground">View and manage property leases.</p>
         </div>
-        {isAdmin ? (
-          <Button onClick={() => setShowCreateForm(!showCreateForm)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Lease
-          </Button>
-        ) : null}
+        <Button onClick={() => setShowCreateForm(!showCreateForm)}>
+          <Plus className="h-4 w-4 mr-2" />
+          New Lease
+        </Button>
       </div>
 
-      {isAdmin && showCreateForm && (
+      {showCreateForm && (
         <Card className="p-6 border-secondary/20 bg-secondary/5">
           <h3 className="text-lg font-semibold mb-4">Create New Lease</h3>
           <form onSubmit={handleCreateLease} className="grid gap-6 md:grid-cols-2">
@@ -248,7 +232,7 @@ export default function LeasesPage() {
       {loading ? (
         <div className="text-center py-10">Loading leases...</div>
       ) : (
-        <div className={`grid gap-6 ${isAdmin ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-2'}`}>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {leases.map((lease) => (
         <Card key={lease.id} className="p-6 hover:-translate-y-0.5 transition-transform">
                <div className="flex justify-between items-start mb-4">
@@ -257,12 +241,8 @@ export default function LeasesPage() {
                       <FileText className="h-5 w-5" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-foreground">
-                        {isAdmin ? (lease.tenant.name || 'Unknown Tenant') : (lease.name || 'Active Lease')}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        {isAdmin ? lease.tenant.email : `Lease ID • ${lease.id.slice(0, 8)}`}
-                      </p>
+                      <h4 className="font-semibold text-foreground">{lease.tenant.name || 'Unknown Tenant'}</h4>
+                      <p className="text-xs text-muted-foreground">{lease.tenant.email}</p>
                     </div>
                   </div>
                   <StatusChip status={lease.status || 'UNKNOWN'} />
@@ -287,20 +267,14 @@ export default function LeasesPage() {
                  </div>
                </div>
 
-           {isAdmin ? (
-             <div className="mt-4 pt-4 border-t flex gap-2">
-               <Button variant="outline" size="sm" className="w-full" onClick={() => startEdit(lease)}>
-                 <Edit className="h-4 w-4 mr-2" /> Edit
-               </Button>
-               <Button variant="ghost" size="sm" className="w-full text-destructive" onClick={() => setDeleteTarget(lease)}>
-                 <Trash2 className="h-4 w-4 mr-2" /> Delete
-               </Button>
-             </div>
-           ) : (
-             <div className="mt-4 pt-4 border-t text-xs text-muted-foreground">
-               Contact property management if any detail looks incorrect.
-             </div>
-           )}
+           <div className="mt-4 pt-4 border-t flex gap-2">
+                 <Button variant="outline" size="sm" className="w-full" onClick={() => startEdit(lease)}>
+                   <Edit className="h-4 w-4 mr-2" /> Edit
+                 </Button>
+                 <Button variant="ghost" size="sm" className="w-full text-destructive" onClick={() => setDeleteTarget(lease)}>
+                   <Trash2 className="h-4 w-4 mr-2" /> Delete
+                 </Button>
+           </div>
         </Card>
       ))}
           
@@ -312,7 +286,7 @@ export default function LeasesPage() {
         </div>
       )}
 
-      {isAdmin && editingLease ? (
+      {editingLease ? (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -367,7 +341,7 @@ export default function LeasesPage() {
         </div>
       ) : null}
 
-      {isAdmin && deleteTarget ? (
+      {deleteTarget ? (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-40">
           <Card className="w-full max-w-md p-6 space-y-4">
             <h3 className="text-lg font-semibold">Delete Lease</h3>

@@ -1,12 +1,45 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Menu, X, LogOut } from 'lucide-react';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { Button } from '@/components/ui/Button';
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
+  const initials = useMemo(() => {
+    if (!user) return '';
+    const source = user.name || user.email;
+    return source
+      .split(' ')
+      .map((segment) => segment[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  }, [user]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      router.push('/login');
+    }
+  };
+
+  const handleMobileLogout = async () => {
+    setOpen(false);
+    try {
+      await logout();
+    } finally {
+      router.push('/login');
+    }
+  };
 
   // Prevent background scroll when sidebar is open
   useEffect(() => {
@@ -29,8 +62,26 @@ export function SiteHeader() {
       {/* Desktop nav */}
       <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
         <Link className="hover:text-foreground" href="/">Home</Link>
-        <Link className="hover:text-foreground" href="/login">Login</Link>
-        <Link className="hover:text-foreground" href="/register">Sign up</Link>
+        {user ? (
+          <>
+            <Link className="hover:text-foreground" href="/dashboard">Dashboard</Link>
+            <div className="flex items-center gap-2 text-foreground">
+              <span className="text-sm font-medium">{user.name || user.email}</span>
+              <div className="h-8 w-8 rounded-full bg-secondary/20 border border-secondary flex items-center justify-center text-xs font-semibold text-secondary-foreground">
+                {initials || 'U'}
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-1.5" />
+              Log out
+            </Button>
+          </>
+        ) : (
+          <>
+            <Link className="hover:text-foreground" href="/login">Login</Link>
+            <Link className="hover:text-foreground" href="/register">Sign up</Link>
+          </>
+        )}
       </nav>
 
       {/* Mobile menu button */}
@@ -65,8 +116,23 @@ export function SiteHeader() {
             </div>
             <nav className="grid gap-4 text-foreground">
               <Link className="hover:text-secondary" href="/" onClick={() => setOpen(false)}>Home</Link>
-              <Link className="hover:text-secondary" href="/login" onClick={() => setOpen(false)}>Login</Link>
-              <Link className="hover:text-secondary" href="/register" onClick={() => setOpen(false)}>Sign up</Link>
+              {user ? (
+                <>
+                  <Link className="hover:text-secondary" href="/dashboard" onClick={() => setOpen(false)}>Dashboard</Link>
+                  <button
+                    className="flex items-center gap-2 text-left hover:text-secondary"
+                    onClick={handleMobileLogout}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link className="hover:text-secondary" href="/login" onClick={() => setOpen(false)}>Login</Link>
+                  <Link className="hover:text-secondary" href="/register" onClick={() => setOpen(false)}>Sign up</Link>
+                </>
+              )}
               <Link className="hover:text-secondary" href="/contact" onClick={() => setOpen(false)}>Contact</Link>
             </nav>
           </aside>

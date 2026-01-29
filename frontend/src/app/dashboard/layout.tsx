@@ -1,17 +1,15 @@
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardHeader } from '@/components/dashboard/Header';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/get-current-user';
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const token = (await cookies()).get('token')?.value;
-  const payload = token ? verifyToken(token) as { userId: string; role: string } | null : null;
-  if (!payload) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
     redirect('/login');
   }
 

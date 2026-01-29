@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
+import { getCurrentUser } from "@/lib/get-current-user";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,17 +20,20 @@ export const metadata: Metadata = {
   description: "The premium solution for modern property management.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const currentUser = await getCurrentUser();
   return (
     <html lang="en" className="dark">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AuthProvider initialUser={currentUser}>
+          {children}
+        </AuthProvider>
         <Script src="https://now-hiring-eta.vercel.app/widget.js" strategy="afterInteractive" />
       </body>
     </html>
