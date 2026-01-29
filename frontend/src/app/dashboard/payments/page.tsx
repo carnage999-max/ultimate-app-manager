@@ -10,7 +10,9 @@ import { Input } from '@/components/ui/Input';
 import { Loader2, CreditCard } from 'lucide-react';
 
 // Replace with your actual publishable key or environment variable
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+const paymentsConfigured = Boolean(publishableKey && !publishableKey.includes('placeholder'));
+const stripePromise = paymentsConfigured ? loadStripe(publishableKey) : null;
 
 function CheckoutForm({ amount }: { amount: number }) {
   const stripe = useStripe();
@@ -57,6 +59,7 @@ export default function PaymentsPage() {
   const [amount, setAmount] = useState('1200');
   const [clientSecret, setClientSecret] = useState('');
   const [isInitiating, setIsInitiating] = useState(false);
+  const [error, setError] = useState('');
 
   const initiatePayment = async () => {
     if (isInitiating) return; // prevent double init
@@ -64,11 +67,14 @@ export default function PaymentsPage() {
     try {
       const res = await axios.post('/api/payments/create-intent', {
         amount: parseFloat(amount),
-      });
+      }, { withCredentials: true });
+      setError('');
       setClientSecret(res.data.clientSecret);
     } catch (error) {
       console.error(error);
-      alert('Failed to initialize payment.');
+      const message = (error as any)?.response?.data?.error || 'Failed to initialize payment.';
+      setError(message);
+      setClientSecret('');
     } finally {
       setIsInitiating(false);
     }
@@ -84,7 +90,16 @@ export default function PaymentsPage() {
         <div className="grid gap-6 md:grid-cols-2">
            <Card className="p-6">
               <h3 className="font-semibold text-lg mb-4">Make a Payment</h3>
-              {!clientSecret ? (
+              {!paymentsConfigured ? (
+                 <div className="space-y-4 text-sm text-muted-foreground">
+                    <p>Payments are not configured yet. Add your Stripe publishable and secret keys to the environment to enable card collection.</p>
+                    <pre className="rounded-lg bg-muted p-3 text-xs text-foreground whitespace-pre-wrap">
+{`# .env
+STRIPE_SECRET_KEY=sk_test_xxx
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxx`}
+                    </pre>
+                 </div>
+              ) : !clientSecret ? (
                 <div className="space-y-4">
                    <div>
                      <label className="text-sm font-medium">Payment Amount ($)</label>
@@ -101,11 +116,14 @@ export default function PaymentsPage() {
                 </div>
               ) : (
                 <div className="animate-in fade-in zoom-in duration-300">
-                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                    {stripePromise ? (
+                      <Elements stripe={stripePromise} options={{ clientSecret }}>
                       <CheckoutForm amount={parseFloat(amount)} />
-                    </Elements>
+                      </Elements>
+                    ) : null}
                 </div>
               )}
+              {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
            </Card>
 
            <Card className="p-6 bg-muted/20 hover:-translate-y-0.5 transition-transform">

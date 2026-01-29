@@ -10,11 +10,16 @@ import { Check, Mail, UserPlus } from "lucide-react";
 
 type User = { id: string; email: string; name?: string | null; role: string; createdAt: string };
 
+const api = axios.create({
+  withCredentials: true,
+});
+
 export default function TenantsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
+  const [error, setError] = useState("");
 
   // Lease modal state
   const [leaseOpen, setLeaseOpen] = useState(false);
@@ -33,10 +38,11 @@ export default function TenantsPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get('/api/users');
+      setError("");
+      const res = await api.get('/api/users');
       setUsers(res.data);
-    } catch (e) {
-      alert('Failed to load users');
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Failed to load users. Please try again.');
     } finally { setLoading(false); }
   };
 
@@ -65,7 +71,7 @@ export default function TenantsPage() {
       if (to.length === 0) { alert('No recipients'); return; }
       // Convert simple body to basic HTML
       const html = emailBody.replace(/\n/g, '<br/>');
-      await axios.post('/api/email/send', { to, subject: emailSubject, html });
+      await api.post('/api/email/send', { to, subject: emailSubject, html });
       alert('Emails sent');
       setEmailOpen(false);
     } catch (e: any) {
@@ -76,7 +82,7 @@ export default function TenantsPage() {
   const createLease = async () => {
     if (!leaseFor) return;
     try {
-      await axios.post('/api/leases', {
+      await api.post('/api/leases', {
         tenantEmail: leaseFor.email,
         startDate: leaseForm.startDate,
         endDate: leaseForm.endDate,
@@ -108,6 +114,14 @@ export default function TenantsPage() {
         <div className="flex items-center gap-2 mb-4">
           <Input placeholder="Filter by name, email, role" value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
+        {error ? (
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={() => { setLoading(true); fetchUsers(); }}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -216,4 +230,3 @@ export default function TenantsPage() {
     </div>
   );
 }
-

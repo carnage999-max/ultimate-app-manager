@@ -4,6 +4,9 @@ import { verifyToken, getAuthToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes('placeholder')) {
+      return NextResponse.json({ error: 'Payments are not configured for this environment.' }, { status: 503 });
+    }
     const token = await getAuthToken(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

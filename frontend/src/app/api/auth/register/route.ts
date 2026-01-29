@@ -75,10 +75,11 @@ export async function POST(request: NextRequest) {
       refreshToken,
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Registration Error:', error);
-    const message = (error as any)?.message || '';
-    if (message.includes('Authentication failed') || (error as any)?.name === 'PrismaClientInitializationError') {
+    const message = error instanceof Error ? error.message : '';
+    const errorName = error instanceof Error ? error.name : '';
+    if (message.includes('Authentication failed') || errorName === 'PrismaClientInitializationError') {
       return NextResponse.json({ error: 'Database unavailable. Check DATABASE_URL credentials.' }, { status: 503 });
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

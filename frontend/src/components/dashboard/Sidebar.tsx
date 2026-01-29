@@ -4,12 +4,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Wrench, 
-  CreditCard, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  FileText,
+  Wrench,
+  CreditCard,
+  LogOut,
   Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -58,11 +58,19 @@ export function Sidebar() {
         </nav>
       </div>
       <div className="border-t p-4">
-        <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive" onClick={() => {
-            // Very basic logout for now
-            document.cookie = 'token=; Max-Age=0; path=/;';
-            window.location.href = '/login';
-        }}>
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
+          onClick={async () => {
+            try {
+              await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+            } catch (e) {
+              console.error('Logout failed', e);
+            } finally {
+              window.location.href = '/login';
+            }
+          }}
+        >
           <LogOut className="h-4 w-4" />
           Log Out
         </Button>
