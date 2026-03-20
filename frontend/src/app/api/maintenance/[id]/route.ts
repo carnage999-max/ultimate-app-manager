@@ -63,10 +63,12 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     const data: any = {};
     let notifyAttended = false;
     if (isOwner) {
+      if (existing.status === 'RESOLVED') {
+        return NextResponse.json({ error: 'Resolved requests cannot be edited.' }, { status: 400 });
+      }
       if (typeof body.title === 'string') data.title = body.title;
       if (typeof body.description === 'string') data.description = body.description;
       if (typeof body.priority === 'string') data.priority = body.priority;
-      if (typeof body.status === 'string') data.status = body.status;
       if (Array.isArray(body.attachments)) {
         data.attachments = body.attachments
           .filter((url: unknown) => typeof url === 'string' && url.trim().length > 0)

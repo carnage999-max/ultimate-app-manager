@@ -44,12 +44,19 @@ export default function MaintenancePage() {
   const [attendingId, setAttendingId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Array<{ id: string; file: File; preview: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', description: '', priority: 'MEDIUM' });
+  const [editRemoteAttachments, setEditRemoteAttachments] = useState<Array<{ id: string; url: string }>>([]);
+  const [editNewAttachments, setEditNewAttachments] = useState<Array<{ id: string; file: File; preview: string }>>([]);
+  const editFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   useEffect(() => {
     return () => {
       attachments.forEach((att) => URL.revokeObjectURL(att.preview));
+      editNewAttachments.forEach((att) => URL.revokeObjectURL(att.preview));
     };
-  }, [attachments]);
+  }, [attachments, editNewAttachments]);
 
   useEffect(() => {
     fetchTickets();
@@ -150,6 +157,112 @@ export default function MaintenancePage() {
       }
     }
     return urls;
+  };
+
+  const openEditTicket = (ticket: Ticket) => {
+    setEditingTicket(ticket);
+    setEditForm({
+      title: ticket.title,
+      description: ticket.description,
+      priority: ticket.priority || 'MEDIUM',
+    });
+    setEditRemoteAttachments(
+      (ticket.attachments || []).map((url) => ({
+        id: `remote-${url}`,
+        url,
+      }))
+    );
+    editNewAttachments.forEach((att) => URL.revokeObjectURL(att.preview));
+    setEditNewAttachments([]);
+  };
+
+  const closeEditTicket = () => {
+    setEditingTicket(null);
+    setEditForm({ title: '', description: '', priority: 'MEDIUM' });
+    setEditRemoteAttachments([]);
+    editNewAttachments.forEach((att) => URL.revokeObjectURL(att.preview));
+    setEditNewAttachments([]);
+  };
+
+  const handleEditFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Only image files are allowed.');
+      event.target.value = '';
+      return;
+    }
+    setEditNewAttachments((prev) => {
+      if (prev.length + editRemoteAttachments.length >= 5) {
+        alert('You can upload a maximum of 5 images.');
+        return prev;
+      }
+      const preview = URL.createObjectURL(file);
+      const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `edit-att-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      return [...prev, { id, file, preview }];
+    });
+    event.target.value = '';
+  };
+
+  const removeEditRemoteAttachment = (id: string) => {
+    setEditRemoteAttachments((prev) => prev.filter((att) => att.id !== id));
+  };
+
+  const removeEditNewAttachment = (id: string) => {
+    setEditNewAttachments((prev) => {
+      const target = prev.find((att) => att.id === id);
+      if (target) URL.revokeObjectURL(target.preview);
+      return prev.filter((att) => att.id !== id);
+    });
+  };
+
+  const uploadEditAttachments = async () => {
+    const urls: string[] = [];
+    for (const attachment of editNewAttachments) {
+      const { data } = await axios.post('/api/files/upload-url', {
+        filename: attachment.file.name,
+        contentType: attachment.file.type,
+      }, { withCredentials: true });
+
+      await axios.put(data.uploadUrl, attachment.file, {
+        headers: { 'Content-Type': attachment.file.type },
+      });
+
+      const directUrl = data.fileUrl || (typeof data.uploadUrl === 'string' ? data.uploadUrl.split('?')[0] : '');
+      if (directUrl) {
+        urls.push(directUrl);
+      }
+    }
+    return urls;
+  };
+
+  const handleEditSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingTicket) return;
+    if (editingTicket.status === 'RESOLVED') return;
+    setEditSubmitting(true);
+    try {
+      const uploaded = await uploadEditAttachments();
+      const finalAttachments = [
+        ...editRemoteAttachments.map((att) => att.url),
+        ...uploaded,
+      ].slice(0, 5);
+      await axios.patch(`/api/maintenance/${editingTicket.id}`, {
+        title: editForm.title,
+        description: editForm.description,
+        priority: editForm.priority,
+        attachments: finalAttachments,
+      });
+      closeEditTicket();
+      fetchTickets();
+    } catch (error) {
+      console.error(error);
+      alert('Failed to update ticket.');
+    } finally {
+      setEditSubmitting(false);
+    }
   };
 
   const markTicketAttended = async (ticketId: string) => {
@@ -315,6 +428,131 @@ export default function MaintenancePage() {
         </Card>
       )}
 
+      {editingTicket ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="w-full max-w-2xl rounded-xl border bg-background p-6 shadow-xl max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">Edit Request</h3>
+                <p className="text-sm text-muted-foreground">
+                  Update details for "{editingTicket.title}"
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={closeEditTicket}>
+                Close
+              </Button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Issue Title</label>
+                <Input
+                  value={editForm.title}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <textarea
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Priority</label>
+                <select
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={editForm.priority}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, priority: e.target.value }))}
+                >
+                  <option value="LOW">Low - It can wait</option>
+                  <option value="MEDIUM">Medium - Normal usage affected</option>
+                  <option value="HIGH">High - Urgent repair needed</option>
+                  <option value="URGENT">Urgent - Emergency</option>
+                </select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Attachments</label>
+                  <span className="text-xs text-muted-foreground">
+                    {editRemoteAttachments.length + editNewAttachments.length}/5 selected
+                  </span>
+                </div>
+                {(editRemoteAttachments.length > 0 || editNewAttachments.length > 0) && (
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    {editRemoteAttachments.map((att) => (
+                      <div key={att.id} className="relative group">
+                        <img
+                          src={att.url}
+                          alt="Existing attachment"
+                          className="h-20 w-20 rounded-lg object-cover border"
+                        />
+                        <button
+                          type="button"
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-6 w-6 text-xs opacity-0 group-hover:opacity-100 transition"
+                          onClick={() => removeEditRemoteAttachment(att.id)}
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                    {editNewAttachments.map((att) => (
+                      <div key={att.id} className="relative group">
+                        <img
+                          src={att.preview}
+                          alt="New attachment"
+                          className="h-20 w-20 rounded-lg object-cover border"
+                        />
+                        <button
+                          type="button"
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-6 w-6 text-xs opacity-0 group-hover:opacity-100 transition"
+                          onClick={() => removeEditNewAttachment(att.id)}
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {editRemoteAttachments.length + editNewAttachments.length < 5 && (
+                  <div className="mt-3">
+                    <label className="rounded-lg border bg-background/50 p-3 flex items-center gap-2 cursor-pointer hover:border-secondary transition">
+                      <UploadCloud className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">Add Photo</span>
+                      <input
+                        ref={editFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleEditFileSelected}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" onClick={closeEditTicket} disabled={editSubmitting}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={editSubmitting}>
+                  {editSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       {loading ? (
         <div className="text-center py-10">Loading tickets...</div>
       ) : (
@@ -384,28 +622,35 @@ export default function MaintenancePage() {
                  )}
                </div>
                
-               <div className="flex items-center justify-between md:flex-col md:items-end md:justify-center gap-2 min-w-[140px]">
-                 <div className="flex items-center gap-2">
-                    <StatusChip status={ticket.status} />
-                 </div>
-                 {isAdmin && ticket.status !== 'RESOLVED' && (
-                   <Button
-                     variant="outline"
-                     size="sm"
-                     onClick={() => markTicketAttended(ticket.id)}
-                     disabled={attendingId === ticket.id}
-                   >
-                     {attendingId === ticket.id ? (
-                       <>
-                         <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                         Updating...
-                       </>
-                     ) : (
-                       'Mark Attended'
-                     )}
-                   </Button>
-                 )}
-               </div>
+              <div className="flex items-center justify-between md:flex-col md:items-end md:justify-center gap-2 min-w-[160px]">
+                <div className="flex items-center gap-2">
+                  <StatusChip status={ticket.status} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  {isAdmin && ticket.status !== 'RESOLVED' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => markTicketAttended(ticket.id)}
+                      disabled={attendingId === ticket.id}
+                    >
+                      {attendingId === ticket.id ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        'Mark Attended'
+                      )}
+                    </Button>
+                  )}
+                  {!isAdmin && ticket.status !== 'RESOLVED' && (
+                    <Button variant="outline" size="sm" onClick={() => openEditTicket(ticket)}>
+                      Edit
+                    </Button>
+                  )}
+                </div>
+              </div>
             </Card>
           )})}
           

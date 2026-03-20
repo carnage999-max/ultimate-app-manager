@@ -137,6 +137,16 @@ const [showConfirm, setShowConfirm] = useState(false);
               }
             </button>
           </div>
+          {mode === "login" && (
+            <div className="text-right mt-1">
+              <Link
+                href="/auth/forgot-password"
+                className="text-xs font-medium text-secondary hover:text-secondary/80 underline"
+              >
+                Forgot your password?
+              </Link>
+            </div>
+          )}
         </div>
         {mode === "register" && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-200">

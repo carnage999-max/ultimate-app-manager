@@ -198,3 +198,61 @@ export async function sendMaintenanceAttendedEmail({
     return false;
   }
 }
+
+interface PasswordResetEmailProps {
+  userEmail: string;
+  resetLink: string;
+}
+
+export async function sendPasswordResetEmail({ userEmail, resetLink }: PasswordResetEmailProps) {
+  try {
+    const { error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+      to: userEmail,
+      subject: 'Reset Your Password - Ultimate Apartment Manager',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Reset Your Password</title>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #1e293b; padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;">
+              <h1 style="color: #f59e0b; margin: 0; font-size: 28px;">Ultimate Apartment Manager</h1>
+            </div>
+            <div style="background: #ffffff; padding: 40px 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+              <h2 style="color: #1e293b; margin-top: 0;">Password Reset Request</h2>
+              <p style="color: #475569; font-size: 16px;">
+                We received a request to reset the password for your account associated with <strong>${userEmail}</strong>.
+              </p>
+              <p style="color: #475569; font-size: 16px;">
+                Click the button below to choose a new password. This link will expire in 1 hour.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetLink}" style="display: inline-block; background: #1e293b; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Reset Password</a>
+              </div>
+              <p style="color: #64748b; font-size: 14px;">
+                If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+              </p>
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+              <p style="color: #64748b; font-size: 14px; margin: 0;">Need help? Reply to this email or contact our support team.</p>
+              <p style="color: #64748b; font-size: 14px; margin: 20px 0 0 0;">Best regards,<br /><strong style="color: #1e293b;">The Ultimate Apartment Manager Team</strong></p>
+            </div>
+          </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error('Password Reset Email Error:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Password Reset Email Error:', error);
+    return false;
+  }
+}
