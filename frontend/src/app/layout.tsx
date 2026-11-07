@@ -46,7 +46,7 @@ export default async function RootLayout({
         <AuthProvider initialUser={currentUser}>
           {children}
         </AuthProvider>
-        <Script src="https://now-hiring-eta.vercel.app/widget.js" strategy="afterInteractive" />
+        <Script src="https://hiring.se7eninc.com/widget.js" strategy="afterInteractive" />
       </body>
     </html>
   );
